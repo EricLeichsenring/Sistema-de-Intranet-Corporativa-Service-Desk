@@ -132,19 +132,32 @@ export function ServiceAdmin() {
     navigate('/login');
   };
 
- // --- IMPRESSÃO INTELIGENTE ---
+// --- IMPRESSÃO INTELIGENTE ---
   const handlePrintReport = () => {
+    // 1. Filtra os dados
     const reportData = tickets.filter(t => t.status === activeTab);
-    if (reportData.length === 0) return alert("Sem dados para imprimir.");
+    
+    if (reportData.length === 0) {
+      return alert("Sem dados para imprimir.");
+    }
 
+    // 2. Abre a janela
     const printWindow = window.open('', '', 'height=600,width=800');
     if (!printWindow) return;
 
+    // 3. Define variáveis lógicas
     const isCancelledTab = activeTab === 'cancelado';
     const isCompletedTab = activeTab === 'concluido'; 
 
-    printWindow.document.write('<html><head><title>Relatório de O.S.</title>');
-    printWindow.document.write(`
+    const titulos = { 
+      pendente: 'EM ABERTO', 
+      em_andamento: 'EM ANDAMENTO', 
+      concluido: 'REALIZADAS', 
+      cancelado: 'CANCELADAS' 
+    };
+
+    // 4. Monta o CSS (Styles)
+    const styles = `
       <style>
         @page { size: A4; margin: 1cm; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10px; color: #000; -webkit-print-color-adjust: exact; }
@@ -161,59 +174,80 @@ export function ServiceAdmin() {
         .col-local { width: ${isCancelledTab || isCompletedTab ? '12%' : '18%'}; }
         .col-tipo { width: ${isCancelledTab || isCompletedTab ? '8%' : '12%'}; }
       </style>
-    `);
-    printWindow.document.write('</head><body>');
-    
-    const titulos = { 
-      pendente: 'EM ABERTO', 
-      em_andamento: 'EM ANDAMENTO', 
-      concluido: 'REALIZADAS', 
-      cancelado: 'CANCELADAS' 
-    };
+    `;
 
-    printWindow.document.write(`
+    // 5. Monta as Linhas da Tabela (Rows) usando .map()
+    const tableRows = reportData.map(item => {
+      const dataFormatada = `${new Date(item._createdAt).toLocaleDateString('pt-BR')} <br/> ${new Date(item._createdAt).toLocaleTimeString('pt-BR').slice(0,5)}`;
+      const idFormatado = `#${item._id.slice(-4).toUpperCase()}`;
+      
+      // Colunas extras condicionais
+      const colCancelado = isCancelledTab ? `<td>${item.justificativa || '—'}</td>` : '';
+      const colConcluido = isCompletedTab ? `<td>${item.materialUtilizado || '—'}</td>` : '';
+
+      return `
+        <tr>
+          <td>${dataFormatada}</td>
+          <td class="col-id"><strong>${idFormatado}</strong></td>
+          <td>${item.nome}</td>
+          <td>${item.local}</td>
+          <td>${item.tipo}</td>
+          <td>${item.descricao}</td>
+          ${colCancelado}
+          ${colConcluido}
+        </tr>
+      `;
+    }).join('');
+
+    // 6. Monta o Cabeçalho da Tabela
+    const tableHeader = `
+      <thead>
+        <tr>
+          <th class="col-data">Data</th>
+          <th class="col-id">ID</th>
+          <th class="col-solicitante">Solicitante</th>
+          <th class="col-local">Local</th>
+          <th class="col-tipo">Tipo</th>
+          <th>Descrição</th>
+          ${isCancelledTab ? '<th>Motivo Cancelamento</th>' : ''}
+          ${isCompletedTab ? '<th>Material Utilizado</th>' : ''}
+        </tr>
+      </thead>
+    `;
+
+    // 7. Constrói o HTML final do Body
+    const bodyContent = `
       <div class="header">
         <h1>Relatório de Ordens de Serviço</h1>
         <p>Status: <strong>${titulos[activeTab]}</strong></p>
         <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
       </div>
-    `);
 
-    printWindow.document.write('<table><thead><tr>');
-    printWindow.document.write('<th class="col-data">Data</th>');
-    printWindow.document.write('<th class="col-id">ID</th>');
-    printWindow.document.write('<th class="col-solicitante">Solicitante</th>');
-    printWindow.document.write('<th class="col-local">Local</th>');
-    printWindow.document.write('<th class="col-tipo">Tipo</th>');
-    printWindow.document.write('<th>Descrição</th>');
-    
-    if (isCancelledTab) printWindow.document.write('<th>Motivo Cancelamento</th>');
-    if (isCompletedTab) printWindow.document.write('<th>Material Utilizado</th>');
-    
-    printWindow.document.write('</tr></thead><tbody>');
+      <table>
+        ${tableHeader}
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
 
-    reportData.forEach(item => {
-      printWindow.document.write('<tr>');
-      printWindow.document.write(`<td>${new Date(item._createdAt).toLocaleDateString('pt-BR')} <br/> ${new Date(item._createdAt).toLocaleTimeString('pt-BR').slice(0,5)}</td>`);
-      printWindow.document.write(`<td class="col-id"><strong>#${item._id.slice(-4).toUpperCase()}</strong></td>`);
-      printWindow.document.write(`<td>${item.nome}</td>`);
-      printWindow.document.write(`<td>${item.local}</td>`);
-      printWindow.document.write(`<td>${item.tipo}</td>`);
-      printWindow.document.write(`<td>${item.descricao}</td>`);
-      
-      if (isCancelledTab) printWindow.document.write(`<td>${item.justificativa || '—'}</td>`);
-      if (isCompletedTab) printWindow.document.write(`<td>${item.materialUtilizado || '—'}</td>`);
-      
-      printWindow.document.write('</tr>');
-    });
+      <div style="margin-top: 20px; font-size: 9px; text-align: right;">
+        Sistema Intranet - Controle Interno
+      </div>
+    `;
 
-    printWindow.document.write('</tbody></table>');
-    printWindow.document.write('<div style="margin-top: 20px; font-size: 9px; text-align: right;">Sistema Intranet - Controle Interno</div>');
-    printWindow.document.write('</body></html>');
+    // 8. Injeta o conteúdo na janela (Sem usar document.write)
+    printWindow.document.title = "Relatório de O.S.";
+    printWindow.document.head.innerHTML = styles;
+    printWindow.document.body.innerHTML = bodyContent;
 
-    printWindow.document.close();
+    // 9. Finaliza e Imprime
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    
+    // Pequeno delay para garantir que estilos/fontes carreguem antes de abrir o diálogo de impressão
+    setTimeout(() => { 
+      printWindow.print(); 
+      printWindow.close(); 
+    }, 500);
   };
 
   // Filtro local da barra de pesquisa
@@ -225,10 +259,10 @@ export function ServiceAdmin() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-8 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-6">
         
         {/* MENU LATERAL */}
-        <div className="w-64 flex-shrink-0 flex flex-col h-fit space-y-2">
+        <div className="w-full md:w-64 flex-shrink-0 flex flex-col h-fit space-y-2">
           
           <button onClick={() => { setActiveTab('pendente'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'pendente' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
             <Clock className="w-5 h-5" /> <span className="font-medium">Em Aberto</span>
