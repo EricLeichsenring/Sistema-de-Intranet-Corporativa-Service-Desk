@@ -15,6 +15,7 @@ import {
   Radiation,
   Droplet,
   Syringe,
+  HeartPulse,
 } from 'lucide-react';
 
 interface ServiceCard {
@@ -57,7 +58,7 @@ const services: ServiceCard[] = [
   {
     title: 'IDS',
     description: 'Acesso ao IDS',
-    icon: KeyRound,
+    icon: HeartPulse,
     href: 'https://guaratuba-saude.ids.inf.br/guaratuba/2/IDSSaude.dll',
     external: true,
   },
