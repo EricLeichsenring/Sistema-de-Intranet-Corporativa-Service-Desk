@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Layout } from '../components/Layout';
-import { 
-  Headphones, Upload, Send, Loader2, CheckCircle, ArrowLeft, 
-  Search, X, Clock, XCircle 
-} from 'lucide-react'; 
+import {
+  Headphones, Upload, Send, Loader2, CheckCircle, ArrowLeft,
+  Search, X, Clock, XCircle
+} from 'lucide-react';
 import { client } from '../lib/sanity';
 
 interface TicketResult {
@@ -47,14 +47,14 @@ export function ServiceTicket() {
       // 1. DEFINIR A LÓGICA DE ROTEAMENTO
       // Lista de tipos que pertencem ao setor de TI
       const tiposTI = [
-        "Hardware - Equipamentos", 
-        "Rede - Conectividade", 
+        "Hardware - Equipamentos",
+        "Rede - Conectividade",
         "Impressora"
       ];
 
       // Se o tipo selecionado estiver na lista acima, vai para TI, senão vai para Manutenção
-      const setorResponsavel = tiposTI.includes(formData.ticketType) 
-        ? 'ti' 
+      const setorResponsavel = tiposTI.includes(formData.ticketType)
+        ? 'ti'
         : 'manutencao';
 
       let imageAssetId = null;
@@ -72,13 +72,13 @@ export function ServiceTicket() {
         tipo: formData.ticketType,
         descricao: formData.description,
         status: 'pendente',
-        
+
         // 2. SALVAR O SETOR NO BANCO DE DADOS
-        setor: setorResponsavel, 
+        setor: setorResponsavel,
 
         anexo: imageAssetId ? { _type: 'image', asset: { _type: 'reference', _ref: imageAssetId } } : undefined
       });
-      
+
       setCreatedTicketId(doc._id);
     } catch (error) {
       console.error("Erro:", error);
@@ -113,7 +113,7 @@ export function ServiceTicket() {
           _id, nome, status, _createdAt, local, justificativa
         }
       `;
-      
+
       const result = await client.fetch(query, { term: searchId });
 
       if (result) {
@@ -131,159 +131,168 @@ export function ServiceTicket() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        
-        {/* === ÁREA DE PESQUISA === */}
-        <div className="mb-8 bg-blue-50 border border-blue-100 rounded-lg p-6">
-          <h3 className="text-blue-800 font-bold mb-3 flex items-center gap-2">
-            <Search size={18}/> Consultar Situação
-          </h3>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Digite o nº do protocolo (ex: AB34CD)" 
-              className="flex-1 p-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
-              value={searchId}
-              onChange={(e) => setSearchId(e.target.value)}
-            />
-            <button 
-              type="submit" 
-              disabled={isSearching}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium disabled:opacity-50"
-            >
-              {isSearching ? <Loader2 className="animate-spin" size={20}/> : 'Buscar'}
-            </button>
-          </form>
-          
-          {searchError && <p className="text-red-600 text-sm mt-2">{searchError}</p>}
+      <div className='w-full flex justify-center'>
 
-          {/* RESULTADO DA PESQUISA */}
-          {searchResult && (
-            <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm animate-fade-in relative">
-              <button onClick={() => setSearchResult(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"><X size={18}/></button>
-              
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Protocolo #{searchResult._id.slice(-6).toUpperCase()}</span>
-                <span className="text-xs text-gray-500">{new Date(searchResult._createdAt).toLocaleDateString('pt-BR')}</span>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  {searchResult.status === 'pendente' && <Clock className="text-blue-500"/>}
-                  {searchResult.status === 'concluido' && <CheckCircle className="text-green-500"/>}
-                  {searchResult.status === 'cancelado' && <XCircle className="text-red-500"/>}
+        <div className="w-full max-w-3xl px-4 md:px-6 py-8">
+
+          {/* === ÁREA DE PESQUISA === */}
+          <div className="mb-8 bg-blue-50 border border-blue-100 rounded-lg p-6">
+            <h3 className="text-blue-800 font-bold mb-3 flex items-center gap-2">
+              <Search size={18} /> Consultar Situação
+            </h3>
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Digite o nº do protocolo (ex: AB34CD)"
+                className="flex-1 p-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center justify-center"
+              >
+                {isSearching ? (
+                  <Loader2 className="animate-spin" size={20} />) : (
+                  <>
+                    <Search size={20} className='block md:hidden' />
+                    <span className='hidden md:block'>Buscar</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {searchError && <p className="text-red-600 text-sm mt-2">{searchError}</p>}
+
+            {/* RESULTADO DA PESQUISA */}
+            {searchResult && (
+              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm animate-fade-in relative">
+                <button onClick={() => setSearchResult(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"><X size={18} /></button>
+
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Protocolo #{searchResult._id.slice(-6).toUpperCase()}</span>
+                  <span className="text-xs text-gray-500">{new Date(searchResult._createdAt).toLocaleDateString('pt-BR')}</span>
                 </div>
-                
-                <div className="flex-1">
-                  <p className="font-bold text-gray-800 text-lg capitalize mb-1">{searchResult.status}</p>
-                  <p className="text-sm text-gray-600">Local: {searchResult.local}</p>
-                  
-                  {/* EXIBIÇÃO DA JUSTIFICATIVA (Aqui estava o erro do >>) */}
-                  {searchResult.status === 'cancelado' && searchResult.justificativa && (
-                     <div className="mt-3 bg-red-50 border border-red-100 p-3 rounded text-sm text-red-800">
-                       <span className="font-bold block mb-1">Motivo do Cancelamento:</span>
-                       "{searchResult.justificativa}"
-                     </div>
-                  )}
+
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">
+                    {searchResult.status === 'pendente' && <Clock className="text-blue-500" />}
+                    {searchResult.status === 'concluido' && <CheckCircle className="text-green-500" />}
+                    {searchResult.status === 'cancelado' && <XCircle className="text-red-500" />}
+                  </div>
+
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800 text-lg capitalize mb-1">{searchResult.status}</p>
+                    <p className="text-sm text-gray-600">Local: {searchResult.local}</p>
+
+                    {/* EXIBIÇÃO DA JUSTIFICATIVA (Aqui estava o erro do >>) */}
+                    {searchResult.status === 'cancelado' && searchResult.justificativa && (
+                      <div className="mt-3 bg-red-50 border border-red-100 p-3 rounded text-sm text-red-800">
+                        <span className="font-bold block mb-1">Motivo do Cancelamento:</span>
+                        "{searchResult.justificativa}"
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* === FORMULÁRIO OU TELA DE SUCESSO === */}
+          {createdTicketId ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center animate-fade-in">
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+              </div>
+
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">Chamado Aberto com Sucesso!</h2>
+              <p className="text-gray-600 mb-8">Sua solicitação foi enviada para a equipe de TI.</p>
+
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 inline-block mb-8">
+                <p className="text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">Número do Protocolo</p>
+                <p className="text-4xl font-mono font-bold text-blue-600">
+                  #{createdTicketId.slice(-6).toUpperCase()}
+                </p>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-6">Anote este número para consultar a situação acima.</p>
+
+              <div>
+                <button
+                  onClick={handleNewTicket}
+                  className="flex items-center justify-center gap-2 mx-auto text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <ArrowLeft size={20} />
+                  Abrir novo chamado
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg">
+                  <Headphones className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">Abrir Chamado</h1>
+                  <p className="text-gray-600">Central de Atendimento Técnico</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                  <input type="text" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Digite seu nome completo" required disabled={isSubmitting} />
+                </div>
+
+                <div>
+                  <label htmlFor="local" className="block text-sm font-medium text-gray-700 mb-2">Local</label>
+                  <input type="text" id="local" value={formData.local} onChange={(e) => setFormData({ ...formData, local: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Secretaria de Educação - Sala 205" required disabled={isSubmitting} />
+                </div>
+
+                <div>
+                  <label htmlFor="ticketType" className="block text-sm font-medium text-gray-700 mb-2">Tipo de Chamado</label>
+                  <select id="ticketType" value={formData.ticketType} onChange={(e) => setFormData({ ...formData, ticketType: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" required disabled={isSubmitting}>
+                    <option value="">Selecione o tipo de chamado</option>
+                    <option value="Hardware - Equipamentos">Hardware - Equipamentos</option>
+                    <option value="Rede - Conectividade">Rede - Conectividade</option>
+                    <option value="Impressora">Impressora</option>
+                    <option value="Eletrica">Elétrica - lâmpadas, tomadas, fios</option>
+                    <option value="Hidraulica">Hidráulica - torneiras, chuveiros, pias, sanitários</option>
+                    <option value="Conserto de mobilia">Conserto de mobília - mesa, cadeira, armários</option>
+                    <option value="Outro">Outros</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">Descrição do Problema</label>
+                  <textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Descreva detalhadamente o problema..." required disabled={isSubmitting} />
+                </div>
+
+                <div>
+                  <label htmlFor="attachment" className="block text-sm font-medium text-gray-700 mb-2">Anexar Imagem</label>
+                  <div className="relative">
+                    <input type="file" id="attachment" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isSubmitting} />
+                    <label htmlFor="attachment" className={`flex items-center justify-center gap-3 w-full px-4 py-6 border-2 border-dashed rounded-lg transition-all cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-blue-50 border-gray-300'}`}>
+                      <Upload className="w-6 h-6 text-gray-400" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-700">{selectedFile ? selectedFile.name : 'Clique para selecionar uma imagem'}</p>
+                        <p className="text-xs text-gray-500 mt-1">PNG, JPG ou JPEG</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <button type="submit" disabled={isSubmitting} className={`w-full flex items-center justify-center gap-3 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'hover:bg-blue-700'}`}>
+                  {isSubmitting ? (<><Loader2 className="w-5 h-5 animate-spin" /><span>Enviando...</span></>) : (<><Send className="w-5 h-5" /><span>Enviar Chamado</span></>)}
+                </button>
+              </form>
             </div>
           )}
         </div>
-
-        {/* === FORMULÁRIO OU TELA DE SUCESSO === */}
-        {createdTicketId ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center animate-fade-in">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-green-600" />
-              </div>
-            </div>
-            
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Chamado Aberto com Sucesso!</h2>
-            <p className="text-gray-600 mb-8">Sua solicitação foi enviada para a equipe de TI.</p>
-
-            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 inline-block mb-8">
-              <p className="text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">Número do Protocolo</p>
-              <p className="text-4xl font-mono font-bold text-blue-600">
-                #{createdTicketId.slice(-6).toUpperCase()}
-              </p>
-            </div>
-            
-            <p className="text-sm text-gray-500 mb-6">Anote este número para consultar a situação acima.</p>
-
-            <div>
-              <button 
-                onClick={handleNewTicket}
-                className="flex items-center justify-center gap-2 mx-auto text-blue-600 hover:text-blue-800 font-medium"
-              >
-                <ArrowLeft size={20} />
-                Abrir novo chamado
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg">
-                <Headphones className="w-8 h-8 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800">Abrir Chamado</h1>
-                <p className="text-gray-600">Central de Atendimento Técnico</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
-                <input type="text" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Digite seu nome completo" required disabled={isSubmitting} />
-              </div>
-
-              <div>
-                <label htmlFor="local" className="block text-sm font-medium text-gray-700 mb-2">Local</label>
-                <input type="text" id="local" value={formData.local} onChange={(e) => setFormData({ ...formData, local: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Secretaria de Educação - Sala 205" required disabled={isSubmitting} />
-              </div>
-
-              <div>
-                <label htmlFor="ticketType" className="block text-sm font-medium text-gray-700 mb-2">Tipo de Chamado</label>
-                <select id="ticketType" value={formData.ticketType} onChange={(e) => setFormData({ ...formData, ticketType: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" required disabled={isSubmitting}>
-                  <option value="">Selecione o tipo de chamado</option>
-                  <option value="Hardware - Equipamentos">Hardware - Equipamentos</option>
-                  <option value="Rede - Conectividade">Rede - Conectividade</option>
-                  <option value="Impressora">Impressora</option>
-                  <option value="Eletrica">Elétrica - lâmpadas, tomadas, fios</option>
-                  <option value="Hidraulica">Hidráulica - torneiras, chuveiros, pias, sanitários</option>
-                  <option value="Conserto de mobilia">Conserto de mobília - mesa, cadeira, armários</option>
-                  <option value="Outro">Outros</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">Descrição do Problema</label>
-                <textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Descreva detalhadamente o problema..." required disabled={isSubmitting} />
-              </div>
-
-              <div>
-                <label htmlFor="attachment" className="block text-sm font-medium text-gray-700 mb-2">Anexar Imagem</label>
-                <div className="relative">
-                  <input type="file" id="attachment" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isSubmitting} />
-                  <label htmlFor="attachment" className={`flex items-center justify-center gap-3 w-full px-4 py-6 border-2 border-dashed rounded-lg transition-all cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-blue-50 border-gray-300'}`}>
-                    <Upload className="w-6 h-6 text-gray-400" />
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-gray-700">{selectedFile ? selectedFile.name : 'Clique para selecionar uma imagem'}</p>
-                      <p className="text-xs text-gray-500 mt-1">PNG, JPG ou JPEG</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <button type="submit" disabled={isSubmitting} className={`w-full flex items-center justify-center gap-3 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'hover:bg-blue-700'}`}>
-                {isSubmitting ? (<><Loader2 className="w-5 h-5 animate-spin" /><span>Enviando...</span></>) : (<><Send className="w-5 h-5" /><span>Enviar Chamado</span></>)}
-              </button>
-            </form>
-          </div>
-        )}
       </div>
     </Layout>
   );
