@@ -1,4 +1,4 @@
-import { Instagram, Facebook, Twitter } from 'lucide-react';
+import { Instagram, Github } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -13,7 +13,7 @@ export function Footer() {
 
           <div className="flex gap-4">
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/devwiz.tech/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 hover:text-blue-600 transition-colors"
@@ -22,22 +22,13 @@ export function Footer() {
               <Instagram className="w-5 h-5" />
             </a>
             <a
-              href="https://facebook.com"
+              href="https://github.com/EricLeichsenring"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 hover:text-blue-600 transition-colors"
-              aria-label="Facebook"
+              aria-label="Github"
             >
-              <Facebook className="w-5 h-5" />
-            </a>
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-              aria-label="Twitter"
-            >
-              <Twitter className="w-5 h-5" />
+              <Github className="w-5 h-5" />
             </a>
           </div>
         </div>
