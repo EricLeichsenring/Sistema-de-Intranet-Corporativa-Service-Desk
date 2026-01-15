@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { 
   Image, FileText, Trash2, Plus, Loader2, LogOut, 
-  Wrench, Type 
+  Wrench, Type, Folder 
 } from 'lucide-react';
 import { client } from '../lib/sanity';
 
@@ -19,7 +19,18 @@ export function SiteAdmin() {
   const [currentUser, setCurrentUser] = useState<{role?: string} | null>(null);
 
   const [newSlide, setNewSlide] = useState({ titulo: '', texto: '', file: null as File | null });
-  const [newDoc, setNewDoc] = useState({ titulo: '', file: null as File | null });
+  
+  // 1. ATUALIZADO: Estado inclui 'setor'
+  const [newDoc, setNewDoc] = useState({ titulo: '', setor: '', file: null as File | null });
+
+  // Lista de setores conforme seu Schema do Sanity
+  const setoresOpcoes = [
+    'Hospital H.M.G',
+    'Pronto Socorro (PS)',
+    'Unidade Básica de Saúde (UBS)',
+    'Pop H.M.G',
+    'Pop P.S'
+  ];
 
   useEffect(() => {
     const userStr = localStorage.getItem('intranet_user');
@@ -40,7 +51,9 @@ export function SiteAdmin() {
     setLoading(true);
     try {
       const bannerQuery = `*[_type == "carousel"][0] { _id, slides[] { titulo, texto, "url": imagem.asset->url, "key": _key } }`;
-      const docQuery = `*[_type == "documentosImpressao"] | order(_createdAt desc) { _id, titulo, "url": arquivo.asset->url }`;
+      
+      // 2. ATUALIZADO: Query agora busca o campo 'setor'
+      const docQuery = `*[_type == "documentosImpressao"] | order(_createdAt desc) { _id, titulo, setor, "url": arquivo.asset->url }`;
 
       const [bannerResult, docResult] = await Promise.all([
         client.fetch(bannerQuery),
@@ -106,17 +119,22 @@ export function SiteAdmin() {
   const handleAddDoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDoc.file) return alert('Selecione um PDF');
+    // Validação do Setor
+    if (!newDoc.setor) return alert('Selecione o Setor do documento');
 
     setUploading(true);
     try {
       const fileAsset = await client.assets.upload('file', newDoc.file);
+      
+      // 4. ATUALIZADO: Envia o campo 'setor' para o Sanity
       await client.create({
         _type: 'documentosImpressao',
         titulo: newDoc.titulo,
+        setor: newDoc.setor,
         arquivo: { _type: 'file', asset: { _type: 'reference', _ref: fileAsset._id } }
       });
       alert('Documento publicado!');
-      setNewDoc({ titulo: '', file: null });
+      setNewDoc({ titulo: '', setor: '', file: null });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -228,6 +246,20 @@ export function SiteAdmin() {
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     value={newDoc.titulo} onChange={e => setNewDoc({...newDoc, titulo: e.target.value})}
                   />
+                  
+                  {/* 3. ATUALIZADO: Dropdown de Setor */}
+                  <select 
+                    required
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    value={newDoc.setor} 
+                    onChange={e => setNewDoc({...newDoc, setor: e.target.value})}
+                  >
+                    <option value="">Selecione o Setor/Pasta</option>
+                    {setoresOpcoes.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+
                   <div className="border-2 border-dashed border-gray-300 p-4 rounded-lg text-center cursor-pointer hover:bg-gray-50 min-w-0">
                     <input className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" type="file" accept=".pdf,.doc,.docx" required onChange={e => setNewDoc({...newDoc, file: e.target.files?.[0] || null})} />
                     <p className="text-xs text-gray-400 mt-2">PDF Recomendado</p>
@@ -279,7 +311,13 @@ export function SiteAdmin() {
                     <div key={doc._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-lg border border-gray-200 shadow-sm gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="bg-red-100 p-2 rounded-lg text-red-600 flex-shrink-0"><FileText size={20}/></div>
-                        <span className="font-medium text-gray-800 truncate">{doc.titulo}</span>
+                        <div className="min-w-0">
+                            <span className="font-medium text-gray-800 truncate block">{doc.titulo}</span>
+                            {/* Visualização do Setor na Lista */}
+                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <Folder size={12}/> {doc.setor || 'Geral'}
+                            </span>
+                        </div>
                       </div>
                       <div className="flex w-full sm:w-auto gap-3 items-center justify-between sm:justify-end mt-2 sm:mt-0">
                         <a href={doc.url} target="_blank" className="text-blue-600 text-sm hover:underline font-medium">Ver arquivo</a>
