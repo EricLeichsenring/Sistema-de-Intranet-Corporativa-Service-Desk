@@ -26,6 +26,7 @@ export function ServiceTicket() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTicketId, setCreatedTicketId] = useState<string | null>(null);
+  const [ticketSector, setTicketSector] = useState<string>('');
 
   // --- ESTADOS DA PESQUISA ---
   const [searchId, setSearchId] = useState('');
@@ -56,6 +57,8 @@ export function ServiceTicket() {
       const setorResponsavel = tiposTI.includes(formData.ticketType)
         ? 'ti'
         : 'manutencao';
+
+      setTicketSector(setorResponsavel);
 
       let imageAssetId = null;
       if (selectedFile) {
@@ -209,7 +212,7 @@ export function ServiceTicket() {
               </div>
 
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Chamado Aberto com Sucesso!</h2>
-              <p className="text-gray-600 mb-8">Sua solicitação foi enviada para a equipe de TI.</p>
+              <p className="text-gray-600 mb-8">Sua solicitação foi enviada para a equipe de <strong>{ticketSector === 'ti' ? 'TI' : 'Manutenção'}</strong>.</p>
 
               <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 inline-block mb-8">
                 <p className="text-sm text-gray-500 uppercase font-bold tracking-wider mb-1">Número do Protocolo</p>
