@@ -13,10 +13,10 @@ export const ticketType = defineType({
       options: {
         list: [
           { title: 'Pendente', value: 'pendente' },
-          // ATENÇÃO: Mudado de 'andamento' para 'em_andamento' para bater com o código React
-          { title: 'Em Andamento', value: 'em_andamento' }, 
+          { title: 'Em Andamento', value: 'em_andamento' },
+          // --- NOVO STATUS ---
+          { title: 'Aguardando', value: 'aguardando' }, 
           { title: 'Concluído', value: 'concluido' },
-          // NOVO: Adicionado status cancelado
           { title: 'Cancelado', value: 'cancelado' }, 
         ],
         layout: 'radio'
@@ -24,7 +24,7 @@ export const ticketType = defineType({
       initialValue: 'pendente'
     }),
     
-    // --- NOVO CAMPO: Roteamento Automático ---
+    // ... (campos setor, nome, local, tipo, descricao mantidos iguais) ...
     defineField({
       name: 'setor',
       title: 'Setor Responsável',
@@ -36,9 +36,8 @@ export const ticketType = defineType({
         ],
         layout: 'radio'
       },
-      initialValue: 'manutencao' // Valor padrão por segurança
+      initialValue: 'manutencao'
     }),
-
     defineField({
       name: 'nome',
       title: 'Nome do Solicitante',
@@ -60,21 +59,20 @@ export const ticketType = defineType({
       type: 'text',
     }),
     
-    // --- NOVO CAMPO: Material Utilizado ---
     defineField({
       name: 'materialUtilizado',
       title: 'Material Utilizado',
       type: 'text',
-      // Só aparece no painel do Sanity se estiver concluído
       hidden: ({document}) => document?.status !== 'concluido' 
     }),
 
+    // --- ATUALIZAÇÃO DA JUSTIFICATIVA ---
     defineField({
       name: 'justificativa',
-      title: 'Justificativa de Cancelamento',
+      title: 'Justificativa (Cancelamento ou Espera)',
       type: 'text', 
-      // Só aparece no painel do Sanity se estiver cancelado
-      hidden: ({document}) => document?.status !== 'cancelado' 
+      // Aparece se for cancelado OU aguardando
+      hidden: ({document}) => document?.status !== 'cancelado' && document?.status !== 'aguardando'
     }),
 
     defineField({

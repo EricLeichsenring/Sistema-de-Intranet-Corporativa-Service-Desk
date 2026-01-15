@@ -4,18 +4,20 @@ import { Layout } from '../components/Layout';
 import { 
   Search, CheckCircle, XCircle, Clock, 
   FileText, User, MapPin, ChevronRight, 
-  Printer, LogOut, LayoutDashboard, PlayCircle 
+  Printer, LogOut, LayoutDashboard, PlayCircle,
+  PauseCircle // <--- NOVO ÍCONE IMPORTADO
 } from 'lucide-react';
 import { client } from '../lib/sanity'; 
 
-// --- INTERFACE ---
+// --- INTERFACE ATUALIZADA ---
 interface Ticket {
   _id: string;
   nome: string;
   local: string;
   tipo: string;
   descricao: string;
-  status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado'; 
+  // Adicionado 'aguardando' no tipo
+  status: 'pendente' | 'em_andamento' | 'aguardando' | 'concluido' | 'cancelado'; 
   justificativa?: string; 
   materialUtilizado?: string;
   imagemUrl?: string;
@@ -27,7 +29,8 @@ export function ServiceAdmin() {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pendente' | 'em_andamento' | 'concluido' | 'cancelado'>('pendente');
+  // Adicionado 'aguardando' no estado da tab
+  const [activeTab, setActiveTab] = useState<'pendente' | 'em_andamento' | 'aguardando' | 'concluido' | 'cancelado'>('pendente');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [currentUser, setCurrentUser] = useState<{role?: string} | null>(null);
@@ -35,7 +38,6 @@ export function ServiceAdmin() {
   const fetchTickets = async (userRole?: string) => {
     setLoading(true);
     try {
-      // Normaliza para garantir que TI, ti ou Ti funcionem
       const roleLimpa = userRole ? userRole.toLowerCase().trim() : '';
       let filtroSetor = '';
 
@@ -45,7 +47,6 @@ export function ServiceAdmin() {
       else if (roleLimpa === 'manutencao') {
         filtroSetor = '&& setor == "manutencao"';
       }
-      // Se for root, filtroSetor continua vazio e busca tudo.
 
       const query = `
         *[_type == "chamado" ${filtroSetor}] | order(_createdAt desc) {
@@ -64,38 +65,41 @@ export function ServiceAdmin() {
     }
   };
 
-  // --- USE EFFECT (CARREGA USUÁRIO E CHAMA O FETCH) ---
   useEffect(() => {
     const userStr = localStorage.getItem('intranet_user');
-    
     if (!userStr) { 
       navigate('/login'); 
       return; 
     }
-
     const user = JSON.parse(userStr);
     setCurrentUser(user);
-
-    // Passa o role do usuário para a função de busca aplicar o filtro
     fetchTickets(user.role);
   }, []);
 
-  // --- ATUALIZAR STATUS (COM MATERIAL OU JUSTIFICATIVA) ---
-  const updateStatus = async (id: string, newStatus: 'em_andamento' | 'concluido' | 'cancelado') => {
+  // --- ATUALIZAR STATUS ---
+  const updateStatus = async (id: string, newStatus: 'em_andamento' | 'aguardando' | 'concluido' | 'cancelado') => {
     let textoExtra = ''; 
     
-    // CASO 1: CONCLUIR (Pede material)
+    // CASO 1: CONCLUIR
     if (newStatus === 'concluido') {
       const material = prompt("Informe o material utilizado (ou deixe em branco se não houve):");
-      if (material === null) return; // Cancelou o prompt
+      if (material === null) return;
       textoExtra = material || "Sem material utilizado";
     }
 
-    // CASO 2: CANCELAR (Pede justificativa)
+    // CASO 2: CANCELAR
     if (newStatus === 'cancelado') {
       const motivo = prompt("Por favor, informe o motivo do cancelamento:");
       if (motivo === null) return; 
       if (motivo.trim() === '') return alert("A justificativa é obrigatória para cancelar.");
+      textoExtra = motivo;
+    }
+
+    // --- NOVO CASO 3: AGUARDANDO ---
+    if (newStatus === 'aguardando') {
+      const motivo = prompt("Informe o motivo da espera (ex: Aguardando peça, Aguardando aprovação):");
+      if (motivo === null) return;
+      if (motivo.trim() === '') return alert("A justificativa é obrigatória para colocar em espera.");
       textoExtra = motivo;
     }
 
@@ -106,6 +110,9 @@ export function ServiceAdmin() {
         patchData.materialUtilizado = textoExtra;
       } else if (newStatus === 'cancelado') {
         patchData.justificativa = textoExtra;
+      } else if (newStatus === 'aguardando') {
+        // Reutilizamos o campo justificativa
+        patchData.justificativa = textoExtra;
       }
 
       await client.patch(id).set(patchData).commit();
@@ -114,7 +121,8 @@ export function ServiceAdmin() {
         ticket._id === id ? { 
           ...ticket, 
           status: newStatus, 
-          justificativa: newStatus === 'cancelado' ? textoExtra : ticket.justificativa,
+          // Atualiza justificativa se for cancelado OU aguardando
+          justificativa: (newStatus === 'cancelado' || newStatus === 'aguardando') ? textoExtra : ticket.justificativa,
           materialUtilizado: newStatus === 'concluido' ? textoExtra : ticket.materialUtilizado
         } : ticket
       ));
@@ -132,31 +140,29 @@ export function ServiceAdmin() {
     navigate('/login');
   };
 
-// --- IMPRESSÃO INTELIGENTE ---
+  // --- IMPRESSÃO ---
   const handlePrintReport = () => {
-    // 1. Filtra os dados
     const reportData = tickets.filter(t => t.status === activeTab);
     
     if (reportData.length === 0) {
       return alert("Sem dados para imprimir.");
     }
 
-    // 2. Abre a janela
     const printWindow = window.open('', '', 'height=600,width=800');
     if (!printWindow) return;
 
-    // 3. Define variáveis lógicas
     const isCancelledTab = activeTab === 'cancelado';
     const isCompletedTab = activeTab === 'concluido'; 
+    const isWaitingTab = activeTab === 'aguardando'; // Flag para aguardando
 
     const titulos = { 
       pendente: 'EM ABERTO', 
       em_andamento: 'EM ANDAMENTO', 
+      aguardando: 'AGUARDANDO / EM ESPERA', // Novo título
       concluido: 'REALIZADAS', 
       cancelado: 'CANCELADAS' 
     };
 
-    // 4. Monta o CSS (Styles)
     const styles = `
       <style>
         @page { size: A4; margin: 1cm; }
@@ -170,20 +176,21 @@ export function ServiceAdmin() {
         
         .col-data { width: 65px; }
         .col-id { width: 45px; text-align: center; }
-        .col-solicitante { width: ${isCancelledTab || isCompletedTab ? '12%' : '18%'}; }
-        .col-local { width: ${isCancelledTab || isCompletedTab ? '12%' : '18%'}; }
-        .col-tipo { width: ${isCancelledTab || isCompletedTab ? '8%' : '12%'}; }
+        .col-solicitante { width: ${isCancelledTab || isCompletedTab || isWaitingTab ? '12%' : '18%'}; }
+        .col-local { width: ${isCancelledTab || isCompletedTab || isWaitingTab ? '12%' : '18%'}; }
+        .col-tipo { width: ${isCancelledTab || isCompletedTab || isWaitingTab ? '8%' : '12%'}; }
       </style>
     `;
 
-    // 5. Monta as Linhas da Tabela (Rows) usando .map()
     const tableRows = reportData.map(item => {
       const dataFormatada = `${new Date(item._createdAt).toLocaleDateString('pt-BR')} <br/> ${new Date(item._createdAt).toLocaleTimeString('pt-BR').slice(0,5)}`;
       const idFormatado = `#${item._id.slice(-4).toUpperCase()}`;
       
-      // Colunas extras condicionais
+      // Colunas extras
       const colCancelado = isCancelledTab ? `<td>${item.justificativa || '—'}</td>` : '';
       const colConcluido = isCompletedTab ? `<td>${item.materialUtilizado || '—'}</td>` : '';
+      // Se for Aguardando, usa a coluna justificativa também
+      const colAguardando = isWaitingTab ? `<td>${item.justificativa || '—'}</td>` : '';
 
       return `
         <tr>
@@ -194,12 +201,12 @@ export function ServiceAdmin() {
           <td>${item.tipo}</td>
           <td>${item.descricao}</td>
           ${colCancelado}
+          ${colAguardando}
           ${colConcluido}
         </tr>
       `;
     }).join('');
 
-    // 6. Monta o Cabeçalho da Tabela
     const tableHeader = `
       <thead>
         <tr>
@@ -210,47 +217,29 @@ export function ServiceAdmin() {
           <th class="col-tipo">Tipo</th>
           <th>Descrição</th>
           ${isCancelledTab ? '<th>Motivo Cancelamento</th>' : ''}
+          ${isWaitingTab ? '<th>Motivo da Espera</th>' : ''} 
           ${isCompletedTab ? '<th>Material Utilizado</th>' : ''}
         </tr>
       </thead>
     `;
 
-    // 7. Constrói o HTML final do Body
     const bodyContent = `
       <div class="header">
         <h1>Relatório de Ordens de Serviço</h1>
         <p>Status: <strong>${titulos[activeTab]}</strong></p>
         <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
       </div>
-
-      <table>
-        ${tableHeader}
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-
-      <div style="margin-top: 20px; font-size: 9px; text-align: right;">
-        Sistema Intranet - Controle Interno
-      </div>
+      <table>${tableHeader}<tbody>${tableRows}</tbody></table>
+      <div style="margin-top: 20px; font-size: 9px; text-align: right;">Sistema Intranet - Controle Interno</div>
     `;
 
-    // 8. Injeta o conteúdo na janela
     printWindow.document.title = "Relatório de O.S.";
     printWindow.document.head.innerHTML = styles;
     printWindow.document.body.innerHTML = bodyContent;
-
-    // 9. Finaliza e Imprime
     printWindow.focus();
-    
-    // Pequeno delay para garantir que estilos/fontes carreguem antes de abrir o diálogo de impressão
-    setTimeout(() => { 
-      printWindow.print(); 
-      printWindow.close(); 
-    }, 500);
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
-  // Filtro local da barra de pesquisa
   const filteredTickets = tickets.filter(t => {
     const matchesTab = t.status === activeTab;
     const matchesSearch = t._id.slice(-4).includes(searchTerm) || t.nome.toLowerCase().includes(searchTerm.toLowerCase()) || t.local.toLowerCase().includes(searchTerm.toLowerCase());
@@ -274,6 +263,12 @@ export function ServiceAdmin() {
             <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">{tickets.filter(t => t.status === 'em_andamento').length}</span>
           </button>
 
+          {/* --- NOVO BOTÃO MENU: AGUARDANDO --- */}
+          <button onClick={() => { setActiveTab('aguardando'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'aguardando' ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
+            <PauseCircle className="w-5 h-5" /> <span className="font-medium">Aguardando</span>
+            <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">{tickets.filter(t => t.status === 'aguardando').length}</span>
+          </button>
+
           <button onClick={() => { setActiveTab('concluido'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'concluido' ? 'bg-green-100 text-green-700 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
             <CheckCircle className="w-5 h-5" /> <span className="font-medium">Realizadas</span>
           </button>
@@ -295,7 +290,6 @@ export function ServiceAdmin() {
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Painel de O.S.</h1>
               <p className="text-gray-600">
-                {/* Mostra qual setor está sendo exibido para confirmação visual */}
                 {currentUser?.role === 'root' ? 'Administração Geral' : currentUser?.role === 'ti' ? 'Setor de TI' : 'Setor de Manutenção'}
               </p>
             </div>
@@ -338,10 +332,18 @@ export function ServiceAdmin() {
                   </div>
                   <div><h3 className="font-bold text-gray-800 mb-2">Descrição</h3><p className="text-gray-600 bg-gray-50 p-4 rounded-lg border border-gray-200">{selectedTicket.descricao}</p></div>
                   
+                  {/* --- EXIBIR JUSTIFICATIVA SE CANCELADO OU AGUARDANDO --- */}
                   {selectedTicket.status === 'cancelado' && selectedTicket.justificativa && (
                     <div>
                       <h3 className="font-bold text-red-700 mb-2">Motivo do Cancelamento</h3>
                       <p className="text-red-600 bg-red-50 p-4 rounded-lg border border-red-200 italic">"{selectedTicket.justificativa}"</p>
+                    </div>
+                  )}
+
+                  {selectedTicket.status === 'aguardando' && selectedTicket.justificativa && (
+                    <div>
+                      <h3 className="font-bold text-orange-700 mb-2">Motivo da Espera</h3>
+                      <p className="text-orange-800 bg-orange-50 p-4 rounded-lg border border-orange-200 italic">"{selectedTicket.justificativa}"</p>
                     </div>
                   )}
 
@@ -360,9 +362,17 @@ export function ServiceAdmin() {
                   
                   {selectedTicket.status !== 'concluido' && selectedTicket.status !== 'cancelado' && (
                     <>
-                      {selectedTicket.status === 'pendente' && (
+                      {/* Se Pendente ou Aguardando, pode iniciar */}
+                      {(selectedTicket.status === 'pendente' || selectedTicket.status === 'aguardando') && (
                         <button onClick={() => updateStatus(selectedTicket._id, 'em_andamento')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-bold">
                           <PlayCircle className="w-5 h-5" /><span>Iniciar Atendimento</span>
+                        </button>
+                      )}
+
+                      {/* Botão de Aguardando (só aparece se já estiver em andamento ou pendente) */}
+                      {selectedTicket.status !== 'aguardando' && (
+                        <button onClick={() => updateStatus(selectedTicket._id, 'aguardando')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all font-bold">
+                          <PauseCircle className="w-5 h-5" /><span>Colocar em Espera</span>
                         </button>
                       )}
 
@@ -392,8 +402,9 @@ export function ServiceAdmin() {
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center 
                       ${ticket.status === 'pendente' ? 'bg-blue-100 text-blue-600' : 
                         ticket.status === 'em_andamento' ? 'bg-yellow-100 text-yellow-600' :
+                        ticket.status === 'aguardando' ? 'bg-orange-100 text-orange-600' : // Cor Laranja para Aguardando
                         ticket.status === 'concluido' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      <FileText className="w-6 h-6" />
+                      {ticket.status === 'aguardando' ? <PauseCircle className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                     </div>
                     <div>
                       <h4 className="font-bold text-gray-800 flex items-center gap-2">

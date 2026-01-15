@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { Layout } from '../components/Layout';
 import {
   Headphones, Upload, Send, Loader2, CheckCircle, ArrowLeft,
-  Search, X, Clock, XCircle
+  Search, X, Clock, XCircle, PauseCircle // 1. IMPORTADO PauseCircle
 } from 'lucide-react';
 import { client } from '../lib/sanity';
 
 interface TicketResult {
   _id: string;
   nome: string;
-  status: 'pendente' | 'concluido' | 'cancelado';
+  // 2. ADICIONADO 'aguardando' NA INTERFACE
+  status: 'pendente' | 'concluido' | 'cancelado' | 'aguardando';
   _createdAt: string;
   local: string;
   justificativa?: string;
@@ -30,7 +31,7 @@ export function ServiceTicket() {
 
   // --- ESTADOS DA PESQUISA ---
   const [searchId, setSearchId] = useState('');
-  const [searchResult, setSearchResult] = useState<TicketResult | null>(null);
+  const [searchResult, setSearchResult] = useState<TicketResult[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
@@ -46,14 +47,12 @@ export function ServiceTicket() {
     setIsSubmitting(true);
     try {
       // 1. DEFINIR A LÓGICA DE ROTEAMENTO
-      // Lista de tipos que pertencem ao setor de TI
       const tiposTI = [
         "Hardware - Equipamentos",
         "Rede - Conectividade",
         "Impressora"
       ];
 
-      // Se o tipo selecionado estiver na lista acima, vai para TI, senão vai para Manutenção
       const setorResponsavel = tiposTI.includes(formData.ticketType)
         ? 'ti'
         : 'manutencao';
@@ -75,10 +74,7 @@ export function ServiceTicket() {
         tipo: formData.ticketType,
         descricao: formData.description,
         status: 'pendente',
-
-        // 2. SALVAR O SETOR NO BANCO DE DADOS
         setor: setorResponsavel,
-
         anexo: imageAssetId ? { _type: 'image', asset: { _type: 'reference', _ref: imageAssetId } } : undefined
       });
 
@@ -100,8 +96,9 @@ export function ServiceTicket() {
   // --- HANDLER DA PESQUISA ---
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchId.length < 4) {
-      setSearchError('Digite pelo menos os 4 últimos dígitos.');
+    
+    if (searchId.length < 3) {
+      setSearchError('Digite pelo menos 3 caracteres para buscar.');
       return;
     }
 
@@ -110,19 +107,21 @@ export function ServiceTicket() {
     setSearchResult(null);
 
     try {
-      // Busca chamados onde o _id termina com o que o usuário digitou
       const query = `
-        *[_type == "chamado" && _id match "*" + $term] | order(_createdAt desc)[0] {
+        *[_type == "chamado" && (
+            _id match "*" + $term || 
+            nome match "*" + $term + "*"
+        )] | order(_createdAt desc) {
           _id, nome, status, _createdAt, local, justificativa
         }
       `;
 
       const result = await client.fetch(query, { term: searchId });
 
-      if (result) {
+      if (result && result.length > 0) {
         setSearchResult(result);
       } else {
-        setSearchError('Nenhum chamado encontrado com este protocolo.');
+        setSearchError('Nenhum chamado encontrado com este protocolo ou nome.');
       }
     } catch (err) {
       console.error(err);
@@ -146,7 +145,7 @@ export function ServiceTicket() {
             <form onSubmit={handleSearch} className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Digite o nº do protocolo (ex: AB34CD)"
+                placeholder="Protocolo ou Nome (ex: AB34CD ou Maria)"
                 className="flex-1 p-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
@@ -169,37 +168,54 @@ export function ServiceTicket() {
             {searchError && <p className="text-red-600 text-sm mt-2">{searchError}</p>}
 
             {/* RESULTADO DA PESQUISA */}
-            {searchResult && (
-              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm animate-fade-in relative">
+            {searchResult && searchResult.map((ticket) => (
+              <div key={ticket._id} className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm animate-fade-in relative">
                 <button onClick={() => setSearchResult(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"><X size={18} /></button>
 
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Protocolo #{searchResult._id.slice(-6).toUpperCase()}</span>
-                  <span className="text-xs text-gray-500">{new Date(searchResult._createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Protocolo #{ticket._id.slice(-6).toUpperCase()}</span>
+                  <span className="text-xs text-gray-500">{new Date(ticket._createdAt).toLocaleDateString('pt-BR')}</span>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <div className="mt-1">
-                    {searchResult.status === 'pendente' && <Clock className="text-blue-500" />}
-                    {searchResult.status === 'concluido' && <CheckCircle className="text-green-500" />}
-                    {searchResult.status === 'cancelado' && <XCircle className="text-red-500" />}
+                    {/* 3. LÓGICA DO ÍCONE ATUALIZADA */}
+                    {ticket.status === 'pendente' && <Clock className="text-blue-500" />}
+                    {ticket.status === 'aguardando' && <PauseCircle className="text-orange-500" />}
+                    {ticket.status === 'concluido' && <CheckCircle className="text-green-500" />}
+                    {ticket.status === 'cancelado' && <XCircle className="text-red-500" />}
                   </div>
 
                   <div className="flex-1">
-                    <p className="font-bold text-gray-800 text-lg capitalize mb-1">{searchResult.status}</p>
-                    <p className="text-sm text-gray-600">Local: {searchResult.local}</p>
+                    <div className="flex justify-between items-start">
+                        {/* Tratamento visual para o texto Aguardando */}
+                        <p className={`font-bold text-lg capitalize mb-1 ${ticket.status === 'aguardando' ? 'text-orange-600' : 'text-gray-800'}`}>
+                          {ticket.status.replace('_', ' ')}
+                        </p>
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">{ticket.nome}</span>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600">Local: {ticket.local}</p>
 
-                    {/* EXIBIÇÃO DA JUSTIFICATIVA */}
-                    {searchResult.status === 'cancelado' && searchResult.justificativa && (
+                    {/* 4. NOVA ÁREA: EXIBIÇÃO DA JUSTIFICATIVA DE ESPERA */}
+                    {ticket.status === 'aguardando' && ticket.justificativa && (
+                      <div className="mt-3 bg-orange-50 border border-orange-100 p-3 rounded text-sm text-orange-800 animate-fade-in">
+                        <span className="font-bold block mb-1">Motivo da Espera:</span>
+                        "{ticket.justificativa}"
+                      </div>
+                    )}
+
+                    {/* ÁREA EXISTENTE: JUSTIFICATIVA DE CANCELAMENTO */}
+                    {ticket.status === 'cancelado' && ticket.justificativa && (
                       <div className="mt-3 bg-red-50 border border-red-100 p-3 rounded text-sm text-red-800">
                         <span className="font-bold block mb-1">Motivo do Cancelamento:</span>
-                        "{searchResult.justificativa}"
+                        "{ticket.justificativa}"
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-            )}
+            ))}
           </div>
 
           {/* === FORMULÁRIO OU TELA DE SUCESSO === */}
